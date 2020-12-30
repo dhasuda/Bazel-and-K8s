@@ -1,29 +1,30 @@
-# Migrating our k8s infrastructure to a monorepo
+# Migrating our k8s infrastructure to a monorepo (+Tutorial)
 
-In VTEX, in the creation of our platform as a service, we've seen the necessity to implement a CI/CD pipeline in the cloud.
-We needed to create a pipeline integrated with GitHub that, every new commit, we'd be able to build the entire store and run some tests with it.
+At VTEX, when creating our platform as a service, we've seen the need to implement a CI/CD pipeline in the cloud.
+It was necessary to create a code pipeline integrated with GitHub that, after every new commit, we'd be able to build the entire store and run some tests with it.
 
-To build such infrastructure, we decided to use [Kubernetes](https://kubernetes.io). Luckly, [Tekton CD](https://tekton.dev) is a open-source framework for creating CI/CD pipelines built for K8s. We started using it as well, but this won't be the focus of this article.
+To build such infrastructure, we decided to use [Kubernetes](https://kubernetes.io). Luckily, [Tekton CD](https://tekton.dev) is an open-source framework for creating CI/CD pipelines built for K8s. So, we started using it as well as our infrastructure base.
 
-As we grew our code base for the platform, with multiple repositories involved, we've realized the importance of having a centralized structure where we could know everything that was in production.
+As we developed our platform code base, with multiple repositories involved, we've realized the importance of having a centralized structure where we could know everything that was in production.
 
 But before I get to the monorepo itself, let me talk a little about our purpose building this platform, our challenges and some context that may be important for you to fully understand this article.
 
 ## 🏗 What we're building
 Our goal is to build a framework for building blazing fast stores.
-No surprise we choose to use [Gatsby](https://www.gatsbyjs.com) as our front-end generator.
+No surprise we choose to use [Gatsby](https://www.gatsbyjs.com) as our front-end generator — once it aims to [build blazing fast websites with React](https://www.freecodecamp.org/news/why-you-should-use-gatsbyjs-to-build-static-sites-4f90eb6d1a7b/).
 
-But to build e-commerce stores with Gatsby, we need to perform a lot of builds.
+But, to build ecommerce stores with Gatsby, we need to perform a lot of builds.
 Every change in the store must trigger a new build.
 To create the infrastructure that would process all of this builds, we've settled with Tekton CD running on a Kubernetes.
 
 As we want to guarantee quality and performance of all the builds, we've integrated several checks and tests in the build pipeline.
-The code is analysed by [Sonarqube](https://www.sonarqube.org), we also run some [Lighthouse](https://developers.google.com/web/tools/lighthouse) and custom end-to-end cypress tests with the deploy preview we're able to generate for each build.
+The code is analyzed by [Sonarqube](https://www.sonarqube.org), we also run some [Lighthouse](https://developers.google.com/web/tools/lighthouse) and custom end-to-end cypress tests with the deploy preview we're able to generate for each build.
 
 As usual, we've also integrated everything with [GitHub](https://github.com), using the checks available for each commit.
 
+## 💭 What we didn't knew at the beginning 
 As you can imagine, we've created a lot of CRD's for our Kubernetes. As well as a lot of docker images that were used by our pods in each build step.
-As any project start, where we don't know yet all of the best practices that will take place once we start scaling the project, we just started the code putting all the `.yaml`'s of the CRD's in one repo, and each Docker image we generated had the source code in a diferente GitHub repository.
+As any project in the beginning, in that moment we didn't know yet all of the best practices that will take place once we start scaling the project, we just started the code putting all the `.yaml`'s of the CRD's in one repo, and each Docker image we generated had the source code in a diferente GitHub repository.
 
 As the project grew, it became noticeable that it was not a good approach.
 Let's say we want to add a new build step to our pipeline with actions complex enough that we couldn't handle with only bash scripts or already existing Docker images.
@@ -32,7 +33,7 @@ After that, we could reference such image in our CRD's and apply them.
 
 ## 🧠🌩 Why monorepo?
 
-There is lot o manual work (build and push the new image, reference it with the right tag in the CRD) and some change of context (we're dealing with, at least, to repositories at the same time).
+There is lot o manual work (build and push the new image, reference it with the right tag in the CRD) and some change of context (we're dealing with, at least, two repositories at the same time).
 Not optimal for productivity.
 So we started to think about creating a monorepo with all the images, but soon we realized that we could also include all the CRD's in it too!
 
@@ -40,7 +41,7 @@ We used [Bazel](https://bazel.build) to describe how the build, run and apply of
 - validate all `.yaml`s
 - build and push all docker images
 - bind the correct docker image to the CRDs that use them
-- appply the configurations to a Kubernetes cluster
+- apply the configurations to a Kubernetes cluster
 
 Much easier to test and evolve the platform!
 And it also saves us from some mechanical work that represented potential failure points.
@@ -48,10 +49,14 @@ And it also saves us from some mechanical work that represented potential failur
 Let's talk about the process of creating the monorepo.
 Along with that, let's try to also do a *How to get started with Bazel and K8s*.
 
+# 🥣 Tutorial
+In this section, you can have a better understanding of some of the issues we faced while developing our solution.
+
+Hopefully, you can use it as a getting started for your own project.
 ## ⚙️ Setup
 Before starting, we need to make sure that everything is correctly installed:
 
-- [Kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl/): this is a CLI for kubernetes. We're going to reuse its configurations for our bazel build
+- [Kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl/): this is a CLI for Kubernetes. We're going to reuse its configurations for our Bazel build
 - [Bazel](https://docs.bazel.build/versions/master/install.html): the build tool
 - [Docker](https://docs.docker.com/get-docker/): help us generate and manage images
 
@@ -162,7 +167,7 @@ k8s_object(
 )
 ```
 
-With that, we're going to be able to validate the `yaml` and apply it using bazel. See the following commands:
+With that, we're going to be able to validate the `yaml` and apply it using Bazel. See the following commands:
 #### `bazel build`
 ![](assets/image2.png)
 
@@ -174,7 +179,7 @@ With that, we're going to be able to validate the `yaml` and apply it using baze
 
 ### Step 2: adding an image
 
-Let's start by adding a image source code to the monorepo. I'll organize it into the `images` folder.
+Let's start by adding an image source code to the monorepo. I'll organize it into the `images` folder.
 Furthermore, if you already took a look at the [rules_docker](https://github.com/bazelbuild/rules_docker/#setup), you may have seen that they propose a new way of generating the image that doesn't require a Dockerfile.
 But since our team at VTEX is already used to creating Dockerfiles and we don't really have experience with translating it to `rules_docker`, we came up with a more generic approach.
 In our solution, we managed to use `rules_docker`, but still using a Dockerfile to generate de image.
@@ -182,7 +187,7 @@ In our solution, we managed to use `rules_docker`, but still using a Dockerfile 
 Let's start by adding the code of our image
 ![](assets/image5.png)
 If you open the `Dockerfile`, you'll notice a lot of `ARG` commands. This is because Bazel, when creating the hermetic environment for the build, also moves to a new folder.
-Therefore, we need to pass these values dinamically.
+Therefore, we need to pass these values dynamically.
 
 Let's define this image as a new Bazel workspace. To do that, we need to create `WORKSPACE` and `BUILD` files in `/images/image-example`
 `WORKSPACE` defines all dependencies for that part of the code:
@@ -277,7 +282,7 @@ To test, run:
 ### Step 3: using image in CRD
 If you read the code of our image, you've seen that's a very simple REST API, that returns a `Hello, world!` when receiving a POST request.
 
-Now let's create a service to run on top of our Kubernetes. For this branch, I'vre reorganized the code: all the `.yaml`s with CRDs are in the `k8s` folder.
+Now let's create a service to run on top of our Kubernetes. For this branch, I've reorganized the code: all the yamls with CRDs are in the `k8s` folder.
 With that, we'll need to reorganize the `BUILD` files.
 But first, let's add our new service.
 
@@ -378,4 +383,5 @@ In summary, this was a highlight of our process of migrating to a monorepo and w
 
 Bazel simplified the interface for building the entire application.
 With that, we get closer to having a fully automized deploy system.
-One that gives us more confidence and gives us a better test hability to prevent errors in production.
+One that gives us more confidence and gives us a better test ability to prevent errors in production.
+
