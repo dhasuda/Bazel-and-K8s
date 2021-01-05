@@ -26,14 +26,14 @@ None of this techologies will be the focus here, but if you want to know more ab
 As usual, we've also integrated everything with [GitHub](https://github.com), using the checks available for each commit.
 
 ## 💭 What we didn't knew at the beginning 
-As you can imagine, we've created a lot of CRDs ([Custom Resource Definition](https://kubernetes.io/docs/concepts/extend-kubernetes/api-extension/custom-resources/)) for our Kubernetes.
+As you can imagine, we have a lot of ([Kubernetes Objects](https://kubernetes.io/docs/concepts/overview/working-with-objects/kubernetes-objects/)) for our Kubernetes.
 As well as a lot of docker images that were used by our pods in each build step.
-As any project in the beginning, in that moment we didn't know yet all of the best practices that will take place once we start scaling the project, we just started the code putting all the yamls of the CRDs in one repo, and each Docker image we generated had the source code in a different GitHub repository.
+As any project in the beginning, in that moment we didn't know yet all of the best practices that will take place once we start scaling the project, we just started the code putting all the resources definitions in one repo, and each Docker image we generated had the source code in a different GitHub repository.
 
 As the project grew, it became noticeable that it was not a good approach.
 Let's say we want to add a new build step to our pipeline with actions complex enough that we couldn't handle with only bash scripts or already existing Docker images.
 We'd need to create a new Docker image, build it and push it to ECR([Elastic Container Registry](https://aws.amazon.com/ecr/)) or [DockerHub](https://hub.docker.com).
-After that, we could reference such image in our CRDs and apply them.
+After that, we could reference such image in our yamls and apply them.
 
 As the project matured, and more people got involved, we've seen that the onboarding on the project was getting harder and harder.
 Everytime, there was a new repository with some part of the system.
@@ -68,11 +68,11 @@ It also gives us a lot of advantages, such as build caching, which can be very p
 
 Let's talk about our case!
 
-We used Bazel to describe how the build, run and apply of the CRDs and Docker images would happen.
+We used Bazel to describe how the build, run and apply of the Kubernetes Objects and Docker images would happen.
 With that, with one single command we could:
 - validate all yamls
 - build and push all docker images
-- bind the correct docker image to the CRDs that use them
+- bind the correct docker image to the resources that use them
 - apply the configurations to a Kubernetes cluster
 
 Much easier to test and evolve the platform!
@@ -207,11 +207,11 @@ k8s_object(
 )
 ```
 The BUILD file describes how a target must be built.
-We are useing the [`k8s_object` rule](https://github.com/bazelbuild/rules_k8s#k8s_object) that will get the CRD from `namespace.yaml`.
+We are useing the [`k8s_object` rule](https://github.com/bazelbuild/rules_k8s#k8s_object) that will get the definitions from `namespace.yaml`.
 
 With that, we're going to be able to validate the `yaml` and apply it using Bazel. See the following commands:
 #### `bazel build //:namespace`
-Validates de CRD.
+Validates de resource definitions.
 ![](assets/image2.png)
 
 #### `bazel run //:namespace`
@@ -316,7 +316,7 @@ Note that here we're using three different Bazel rules. The first one, `pkg_tar`
 In this case, the script triggers the `docker build` command, passing as `--build-arg` the paths for the files our Dockerfile needs.
 All of this `--build-arg`s are accessible in the Dockerfile after the `ARG` command.
 Finally, the `container_image` rule is the from `rules_docker`.
-This will be necessary for us to bind with K8s CRDs.
+This will be necessary for us to bind with K8s Objects.
 
 Let's just test if the build is working with Bazel? From the root of your directory, you can trigger the build of targets from other workspaces if you first declare them in the "root" `WORKSPACE`:
 ```
@@ -336,11 +336,11 @@ To test, run:
 
 The `@image_example` defines that you're using the `local_repository` we defined in the `WORKSPACE` file. the `//:image` is simply the target.
 
-### Step 3: using image in CRD
+### Step 3: using image in a Kubernetes Object
 If you read the code of our image, you've seen that's a very simple REST API, that returns a `Hello, world!` when receiving a POST request.
 
 Now we're creating a service to run on top of our Kubernetes.
-For this branch, we've reorganized the code: all the yamls with CRDs are in the `k8s` folder.
+For this branch, we've reorganized the code: all the yamls with resources definitions are in the `k8s` folder.
 With that, we'll need to reorganize the `BUILD` files.
 But first, let's see our new service.
 
