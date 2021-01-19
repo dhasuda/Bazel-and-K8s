@@ -440,7 +440,7 @@ Of course there are particularities for each system and team that need to be con
 This article doesn't explore all the possibilities Bazel gives us.
 Depending on your context, you may need to implement some [Bazel Macros](https://docs.bazel.build/versions/master/skylark/macros.html) or even new [Rules](https://docs.bazel.build/versions/master/skylark/rules.html) to have it working properly.
 
-One simple thing we needed to do was to use the `resolver` field in the `k8s_object` rule to replace some values that changed depending on the environment test we're using.
+One simple thing we needed to do was to use the `resolver` field in the `k8s_object` rule to replace some values that changed depending on the test environment we're using.
 
 In summary, this was a highlight of our process of migrating to a monorepo and we do not see this as the final step in our development experience.
 
